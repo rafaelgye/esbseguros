@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:mulexml="http://www.mulesoft.org/schema/mule/xml" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:ws="http://www.mulesoft.org/schema/mule/ws" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ws http://www.mulesoft.org/schema/mule/ws/current/mule-ws.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/current/mule-xml.xsd">
+    <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration"/>
+    <http:request-config name="HTTP_Request_ObtieneUsuario" host="hamburgo.sytes.net" basePath="/serviciosWeb/obtienedatosUsuario" doc:name="HTTP Request Configuration" port="80"/>
+    <ws:consumer-config name="Web_Service_Consumer" service="" port="" serviceAddress="" connectorConfig="HTTP_Request_Configuration" doc:name="Web Service Consumer"/>
+    <http:request-config name="HTTP_Request_CreaUsuario" host="hamburgo.sytes.net" basePath="serviciosWeb/creaUsuario" doc:name="HTTP Request Configuration" port="80"/>
+    <http:request-config name="HTTP_Request_Configuration" host="hamburgo.sytes.net" port="80" basePath="/serviciosWeb/datosCliente" doc:name="HTTP Request Configuration"/>
+    <file:connector name="File" writeToDirectory="C:\archivosClientes\repositorio" readFromDirectory="C:\archivosClientes" autoDelete="false" streaming="true" validateConnections="true" doc:name="File"/>
+    <http:request-config name="HTTP_Request_CuentaCorriente" host="hamburgo.sytes.net" port="80" basePath="/serviciosWeb/cuentaCorriente" doc:name="HTTP Request Configuration"/>
+    <http:request-config name="HTTP_Request_CuponPago" host="hamburgo.sytes.net" port="80" basePath="/serviciosWeb/cuponPago" doc:name="HTTP Request Configuration"/>
+    <flow name="AltadeUsuario">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/creaUsuario" doc:name="Requrimiento HTTP para alta de usuario de un cliente"/>
+        <logger level="INFO" doc:name="Guarda Log"/>
+        <http:request config-ref="HTTP_Request_ObtieneUsuario" path="/" method="GET" doc:name="Consume Servicio Web para obtener los datos del cliente en la base de datos">
+            <http:request-builder>
+                <http:query-param paramName="tipoId" value="#[message.inboundProperties.'http.query.params',tipoId]"/>
+                <http:query-param paramName="numId" value="#[message.inboundProperties.'http.query.params',numId]"/>
+                <http:query-param paramName="agencia" value="#[message.inboundProperties.'http.query.params',agencia]"/>
+                <http:query-param paramName="ramo" value="#[message.inboundProperties.'http.query.params',ramo]"/>
+                <http:query-param paramName="poliza" value="#[message.inboundProperties.'http.query.params',poliza]"/>
+                <http:query-param paramName="ci" value="#[message.inboundProperties.'http.query.params',ci]"/>
+                <http:query-param paramName="tipoRespuesta" value="#[message.inboundProperties.'http.query.params',tipoRespuesta]"/>
+                 </http:request-builder>
+        </http:request>
+        <json:json-to-object-transformer returnClass="java.util.List" doc:name="JSON to Object"/>
+        <collection-splitter doc:name="Collection Splitter"/>
+        <http:request config-ref="HTTP_Request_CreaUsuario" path="/" method="GET" doc:name="Consume Servicio Web para grabar los datos del usuario en la base de datos">
+            <http:request-builder>
+                <http:query-param paramName="tipoId" value="#[message.inboundProperties.'http.query.params',tipoId]"/>
+                <http:query-param paramName="numId" value="#[message.inboundProperties.'http.query.params',numId]"/>
+                <http:query-param paramName="email" value="#[message.inboundProperties.'http.query.params',clave]"/>
+                <http:query-param paramName="clave" value="#[message.inboundProperties.'http.query.params',clave]"/>
+                <http:query-param paramName="tipoCliente" value="#[message.inboundProperties.'http.query.params',tipoCliente]"/>
+                <http:query-param paramName="tipoRespuesta" value="#[message.inboundProperties.'http.query.params',tipoRespuesta]"/>
+            </http:request-builder>
+        </http:request>
+    </flow>
+    <flow name="ListadodeSeguros">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/datosCliente" doc:name="HTTP"/>
+        <logger level="INFO" doc:name="Logger"/>
+        <http:request config-ref="HTTP_Request_Configuration" path="/" method="GET" doc:name="Consume Servicio Web para obtener la lista de seguros de un cliente">
+            <http:request-builder>
+                <http:query-param paramName="tipoId" value="#[message.inboundProperties.'http.query.params',tipoId]"/>
+                <http:query-param paramName="numId" value="#[message.inboundProperties.'http.query.params',numId]"/>
+                
+            </http:request-builder>
+        </http:request>
+        <mulexml:xml-to-object-transformer doc:name="XML to Object"/>
+        <collection-splitter doc:name="Collection Splitter"/>
+        <file:outbound-endpoint responseTimeout="10000" doc:name="Genera un archivo con los seguros del cliente" connector-ref="File" outputPattern="listadoSeguros.pdf" path="C:\archivosClientes"/>
+    </flow>
+    <flow name="CuentaCorriente">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/cuentaCorriente" doc:name="HTTP"/>
+        <logger level="INFO" doc:name="Logger"/>
+        <http:request config-ref="HTTP_Request_CuentaCorriente" path="/" method="GET" doc:name="Consume Servicio Web para obtener un Stream PDF con la cuenta corriente de un seguro">
+            <http:request-builder>
+                <http:query-param paramName="agencia" value="#[message.inboundProperties.'http.query.params',agencia]"/>
+                <http:query-param paramName="ramo" value="#[message.inboundProperties.'http.query.params',ramo]"/>
+                <http:query-param paramName="poliza" value="#[message.inboundProperties.'http.query.params',poliza]"/>
+                <http:query-param paramName="ci" value="#[message.inboundProperties.'http.query.params',ci]"/>
+                <http:query-param paramName="tipoRespuesta" value="#[message.inboundProperties.'http.query.params',tipoRespuesta]"/>
+          
+            </http:request-builder>
+        </http:request>
+     <file:outbound-endpoint responseTimeout="10000" doc:name="Genera un archivo con la cuenta corriente del seguro del cliente" connector-ref="File" outputPattern="listadoSeguros.pdf" path="C:\archivosClientes"/>
+    </flow>
+    <flow name="Cup&#243;nPago">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/cuponPago" doc:name="HTTP"/>
+        <logger level="INFO" doc:name="Logger"/>
+        <http:request config-ref="HTTP_Request_CuponPago" path="/" method="GET" doc:name="Consume Servicio Web para obtener un Stream PDF del cup&#243;n de pago de un seguro">
+            <http:request-builder>
+                <http:query-param paramName="agencia" value="#[message.inboundProperties.'http.query.params',agencia]"/>
+                <http:query-param paramName="ramo" value="#[message.inboundProperties.'http.query.params',ramo]"/>
+                <http:query-param paramName="poliza" value="#[message.inboundProperties.'http.query.params',poliza]"/>
+                <http:query-param paramName="ci" value="#[message.inboundProperties.'http.query.params',ci]"/>
+                <http:query-param paramName="idCuota" value="#[message.inboundProperties.'http.query.params',idCuota]"/>
+                <http:query-param paramName="tipoRespuesta" value="#[message.inboundProperties.'http.query.params',tipoRespuesta]"/>
+               
+                      </http:request-builder>
+        </http:request>
+   <file:outbound-endpoint responseTimeout="10000" doc:name="Genera un archivo con informaci&#243;n del cup&#243;n de pago" connector-ref="File" outputPattern="listadoSeguros.pdf" path="C:\archivosClientes"/>
+     </flow>
+    <flow name="constanciaMercosur">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/" doc:name="HTTP"/>
+        <logger level="INFO" doc:name="Logger"/>
+        <http:request config-ref="HTTP_Request_Configuration" path="" method="" doc:name="Consume Servicio Web para obtener un Stream PDF de la constancia de Mercosur"/>
+        <file:outbound-endpoint responseTimeout="10000" doc:name="File"/>
+    </flow>
+    <flow name="CertificadoCobertura">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/" doc:name="HTTP"/>
+        <logger level="INFO" doc:name="Logger"/>
+        <http:request config-ref="HTTP_Request_Configuration" path="" method="" doc:name="Consume Servicio Web para obtener un Stream PDF con los datos de la P&#243;liza o Certificado de cobertura"/>
+        <file:outbound-endpoint responseTimeout="10000" doc:name="File"/>
+    </flow>
+</mule>
